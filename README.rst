@@ -21,11 +21,19 @@ Typical file example::
 
 Running ``plot_intensity.py``
 
+Cloning the repository
+----------------------
+
+To clone this repository directly from GitHub, run::
+
+    git clone https://github.com/cadenmyers13/oct2025_beamtime.git
+    cd oct2025_beamtime
+
 
 Installation
 ------------
 
-Clone or download this repository, then install necessary packages by running::
+To install necessary packages run::
 
     pip install -r requirements.txt
 
