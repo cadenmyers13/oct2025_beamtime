@@ -43,7 +43,7 @@ Run the script from the command line::
 
 Example::
 
-    python plot_intensity.py dummy_data.fq
+    python plot_intensity.py data/dummy_data.fq
 
 The plot will appear in a window showing:
 
