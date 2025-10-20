@@ -43,13 +43,13 @@ Run the script from the command line::
 
 Example::
 
-    python plot_intensity.py data/dummy_data.fq
+    python plot_intensity.py data/Ni.gr
 
 The plot will appear in a window showing:
 
 - **X-axis label** = first label in the header line (e.g., ``Angle``)
 - **Y-axis label** = second label in the header line (e.g., ``Intensity``)
-- **Title** = the name of the file (e.g., ``sample_data.txt``)
+- **Title** = the name of the file (e.g., ``Ni.gr``)
 
 
 License
