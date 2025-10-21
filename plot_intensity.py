@@ -5,12 +5,16 @@ Quick two-column plotting script with metadata handling.
 Usage:
     python plot_intensity.py file1.txt [file2.txt ...]
     python plot_intensity.py --diff file1.txt file2.txt
+    python plot_intensity.py --waterfall file1.txt [file2.txt ...]
 
 Behavior:
     - Skips metadata lines at the top
     - Looks for a line beginning with "#L" for x/y column labels
     - Assumes two numeric columns for plotting
-    - Can plot multiple files together or the difference between two
+    - Can:
+        * Plot multiple files together
+        * Plot a vertical waterfall stack of multiple files
+        * Plot the difference between two files
 """
 
 import sys
@@ -40,7 +44,7 @@ def find_labels_and_data_start(lines):
         if not parts or parts == ['']:
             continue
         try:
-            [float(p) for p in parts]  # test conversion
+            [float(p) for p in parts]
             data_start_idx = i
             break
         except ValueError:
@@ -90,13 +94,52 @@ def plot_multiple(files):
             print(f"Error reading {path}: {e}")
             continue
 
-        plt.plot(x, y, label=path.name, lw=1.5)
+        plt.plot(x, y, label=path.name, alpha=.7)
 
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.legend()
     plt.grid(True, ls="--", alpha=0.6)
-    # plt.tight_layout()
+    plt.show()
+
+
+def plot_waterfall(files, scale_factor=.7):
+    """
+    Plot multiple files in a vertical waterfall format.
+
+    Each dataset is vertically offset by (ymax - ymin) * scale_factor
+    relative to the previous one.
+    """
+    plt.figure(figsize=(6, 4))
+    xlabel, ylabel = "X", "Y"
+
+    data_list = []
+    for f in files:
+        path = Path(f)
+        if not path.exists():
+            print(f"Error: file not found -> {path}")
+            continue
+        try:
+            x, y, xlabel, ylabel = load_data(path)
+            data_list.append((path.name, x, y))
+        except Exception as e:
+            print(f"Error reading {path}: {e}")
+            continue
+
+    if not data_list:
+        print("No valid data to plot.")
+        return
+
+    offset = 0.0
+    for i, (name, x, y) in enumerate(data_list):
+        y_range = np.nanmax(y) - np.nanmin(y)
+        plt.plot(x, y + offset, lw=1.5, label=name, alpha=.7)
+        offset += y_range * scale_factor  # offset depends on each curve’s range
+
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.legend()
+    plt.grid(True, ls="--", alpha=0.6)
     plt.show()
 
 
@@ -119,13 +162,11 @@ def plot_difference(file1, file2):
     y_diff = y1 - y2_interp
 
     plt.figure(figsize=(6, 4))
-    plt.plot(x1, y_diff, '-', lw=1.5, label=f"{path1.name} - {path2.name}")
+    plt.plot(x1, y_diff, '-', lw=1.5, label=f"{path1.name} - {path2.name}", alpha=.7)
     plt.xlabel(xlabel)
     plt.ylabel(f"Δ{ylabel}")
-    plt.title("Difference Plot")
     plt.legend()
     plt.grid(True, ls="--", alpha=0.6)
-    # plt.tight_layout()
     plt.show()
 
 
@@ -135,6 +176,7 @@ def main():
         print("Usage:")
         print("  python plot_intensity.py file1.txt [file2.txt ...]")
         print("  python plot_intensity.py --diff file1.txt file2.txt")
+        print("  python plot_intensity.py --waterfall file1.txt [file2.txt ...]")
         sys.exit(1)
 
     if args[0] == "--diff":
@@ -142,6 +184,13 @@ def main():
             print("Error: --diff requires exactly two filenames.")
             sys.exit(1)
         plot_difference(args[1], args[2])
+
+    elif args[0] == "--waterfall":
+        if len(args) < 2:
+            print("Error: --waterfall requires at least one filename.")
+            sys.exit(1)
+        plot_waterfall(args[1:])
+
     else:
         plot_multiple(args)
 
