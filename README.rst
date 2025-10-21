@@ -53,6 +53,10 @@ Plot the difference in command line::
 
     python plot_intensity.py --diff <filename1> <filename2>
 
+Plot waterfall plots: 
+
+    python plot_intensity.py --waterfall <filename1> <filename2> <filename3> ...
+
 Example::
 
     python plot_intensity.py data/Ni.gr
