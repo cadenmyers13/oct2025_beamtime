@@ -47,7 +47,11 @@ Usage
 
 Run the script from the command line::
 
-    python plot_intensity.py <filename>
+    python plot_intensity.py <filename1> <filename2>
+
+Plot the difference in command line::
+
+    python plot_intensity.py --diff <filename1> <filename2>
 
 Example::
 
