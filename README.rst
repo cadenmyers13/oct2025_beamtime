@@ -55,7 +55,7 @@ Plot the difference in command line::
 
 Plot waterfall plots: 
 
-    python plot_intensity.py --waterfall <filename1> <filename2> <filename3> ...
+    python plot_intensity.py --waterfall <filename1> <filename2> <filename3> --y-space=1
 
 Example::
 
