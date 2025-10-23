@@ -3,18 +3,19 @@
 Quick two-column plotting script with metadata handling.
 
 Usage:
-    python plot_intensity.py file1.txt [file2.txt ...]
-    python plot_intensity.py --diff file1.txt file2.txt
-    python plot_intensity.py --waterfall file1.txt [file2.txt ...]
+    python plot_intensity.py file1.csv [file2.csv ...]
+    python plot_intensity.py --diff file1.csv file2.csv
+    python plot_intensity.py --waterfall file1.csv [file2.csv ...] [--y-space=<number>]
 
 Behavior:
     - Skips metadata lines at the top
     - Looks for a line beginning with "#L" for x/y column labels
-    - Assumes two numeric columns for plotting
+    - Assumes numeric data (supports CSV or space-separated)
     - Can:
         * Plot multiple files together
         * Plot a vertical waterfall stack of multiple files
         * Plot the difference between two files
+        * Optionally specify vertical spacing between curves with --y-space
 """
 
 import sys
@@ -37,7 +38,7 @@ def find_labels_and_data_start(lines):
 
         # Look for #L label line
         if stripped.startswith("#L"):
-            label_line = stripped[2:].strip()  # remove "#L"
+            label_line = stripped[2:].strip()
 
         # Detect start of numeric data
         parts = re.split(r"[,\s]+", stripped)
@@ -56,16 +57,14 @@ def find_labels_and_data_start(lines):
 
 
 def load_data(filename):
-    """Load two-column numeric data and labels from a file."""
+    """Load numeric data and labels from a CSV or space-separated file."""
     lines = filename.read_text().splitlines()
     label_line, start_idx = find_labels_and_data_start(lines)
 
-    # Extract x/y labels
     labels = re.split(r"[,\s]+", label_line)
     xlabel = labels[0] if len(labels) >= 1 else "X"
     ylabel = labels[1] if len(labels) >= 2 else "Y"
 
-    # Load numeric data
     try:
         data = np.loadtxt(lines[start_idx:], delimiter=None)
     except Exception as e:
@@ -103,17 +102,18 @@ def plot_multiple(files):
     plt.show()
 
 
-def plot_waterfall(files, scale_factor=.7):
+def plot_waterfall(files, y_space=None, scale_factor=0.1):
     """
     Plot multiple files in a vertical waterfall format.
 
-    Each dataset is vertically offset by (ymax - ymin) * scale_factor
-    relative to the previous one.
+    Each dataset is vertically offset by either:
+        - (ymax - ymin) * scale_factor, OR
+        - a fixed spacing (y_space) if provided via --y-space
     """
     plt.figure(figsize=(6, 4))
     xlabel, ylabel = "X", "Y"
-
     data_list = []
+
     for f in files:
         path = Path(f)
         if not path.exists():
@@ -131,10 +131,26 @@ def plot_waterfall(files, scale_factor=.7):
         return
 
     offset = 0.0
-    for i, (name, x, y) in enumerate(data_list):
-        y_range = np.nanmax(y) - np.nanmin(y)
-        plt.plot(x, y + offset, lw=1.5, label=name, alpha=.7)
-        offset += y_range * scale_factor  # offset depends on each curve’s range
+    for name, x, y in data_list:
+        # Normalize label
+        if ".dofr" in name:
+            y = y * 1/8
+            label_name = name.split(".dofr")[0]
+        elif "LTS_HME_PCM_AFF_" in name:
+            subname = name.split("_2025")[0]
+            label_name = subname.replace("LTS_HME_PCM_AFF_", "Long_term_storage_")
+        elif "Paracetamol" in name:
+            label_name = "crystalline paracetamol"
+        else:
+            label_name = name.split("_2025")[0]
+
+        plt.plot(x, y + offset, lw=1.5, label=label_name)
+
+        if y_space is not None:
+            offset += y_space
+        else:
+            y_range = np.nanmax(y) - np.nanmin(y)
+            offset += y_range * scale_factor
 
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -153,7 +169,6 @@ def plot_difference(file1, file2):
     x1, y1, xlabel, ylabel = load_data(path1)
     x2, y2, _, _ = load_data(path2)
 
-    # Interpolate y2 onto x1 grid if x values differ
     if not np.allclose(x1, x2):
         y2_interp = np.interp(x1, x2, y2)
     else:
@@ -162,7 +177,7 @@ def plot_difference(file1, file2):
     y_diff = y1 - y2_interp
 
     plt.figure(figsize=(6, 4))
-    plt.plot(x1, y_diff, '-', lw=1.5, label=f"{path1.name} - {path2.name}", alpha=.7)
+    plt.plot(x1, y_diff, '-', lw=1.5, label=f"{path1.name} - {path2.name}")
     plt.xlabel(xlabel)
     plt.ylabel(f"Δ{ylabel}")
     plt.legend()
@@ -174,9 +189,9 @@ def main():
     args = sys.argv[1:]
     if not args:
         print("Usage:")
-        print("  python plot_intensity.py file1.txt [file2.txt ...]")
-        print("  python plot_intensity.py --diff file1.txt file2.txt")
-        print("  python plot_intensity.py --waterfall file1.txt [file2.txt ...]")
+        print("  python plot_intensity.py file1.csv [file2.csv ...]")
+        print("  python plot_intensity.py --diff file1.csv file2.csv")
+        print("  python plot_intensity.py --waterfall file1.csv [file2.csv ...] [--y-space=<number>]")
         sys.exit(1)
 
     if args[0] == "--diff":
@@ -189,7 +204,21 @@ def main():
         if len(args) < 2:
             print("Error: --waterfall requires at least one filename.")
             sys.exit(1)
-        plot_waterfall(args[1:])
+
+        # Parse optional --y-space argument
+        y_space = None
+        files = []
+        for a in args[1:]:
+            if a.startswith("--y-space="):
+                try:
+                    y_space = float(a.split("=", 1)[1])
+                except ValueError:
+                    print("Error: --y-space must be a number.")
+                    sys.exit(1)
+            else:
+                files.append(a)
+
+        plot_waterfall(files, y_space=y_space)
 
     else:
         plot_multiple(args)
